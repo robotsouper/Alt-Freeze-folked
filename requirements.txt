@@ -6,7 +6,7 @@ opencv_transforms
 termcolor
 tensorboardX
 contexttimer
-sklearn
+scikit-learn
 imgaug
 prettytable
 simplejson #
@@ -20,4 +20,13 @@ PyTurboJPEG
 pickle5
 albumentations
 einops
-filterpy #
+filterpy
+matplotlib
+pyyaml
+opencv-python 
+scipy
+pandas
+filterpy
+termcolor
+simplejson
+fvcore#
