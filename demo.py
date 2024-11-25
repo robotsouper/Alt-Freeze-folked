@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
+import pandas as pd
+
 from tqdm import tqdm
 
 from config import config as cfg
@@ -17,11 +19,36 @@ from utils.plugin_loader import PluginLoader
 mean = torch.tensor([0.485 * 255, 0.456 * 255, 0.406 * 255]).cuda().view(1, 3, 1, 1, 1)
 std = torch.tensor([0.229 * 255, 0.224 * 255, 0.225 * 255]).cuda().view(1, 3, 1, 1, 1)
 max_frame = 400
-video_directory = "dataset/Live_Portrait"  # Directory containing all video files
+video_directory = "dataset/ff_manipulated"  # Directory containing all video files
 out_dir = "prediction"
 cfg_path = "i3d_ori.yaml"
 ckpt_path = "checkpoints/model.pth"
 optimal_threshold = 0.04
+
+def save_scores_to_excel(video_name, avg_score, output_path):
+    """
+    Save the video name and score to an Excel file.
+
+    Parameters:
+    video_name (str): The name of the video without the .mp4 extension.
+    avg_score (float): The average score of the video.
+    output_path (str): Path to save the Excel file.
+    """
+    new_data = pd.DataFrame({"Video Name": [video_name], "Score": [round(avg_score, 4)]})
+    
+    if os.path.exists(output_path):
+        # Read existing data
+        existing_data = pd.read_excel(output_path)
+        # Append new data
+        updated_data = pd.concat([existing_data, new_data], ignore_index=True)
+    else:
+        # Create new data
+        updated_data = new_data
+    
+    # Save the updated data back to the file
+    updated_data.to_excel(output_path, index=False, sheet_name="Scores")
+
+
 
 if __name__ == "__main__":
     cfg.init_with_yaml()
@@ -35,8 +62,9 @@ if __name__ == "__main__":
 
     crop_align_func = FasterCropAlignXRay(cfg.imsize)
     os.makedirs(out_dir, exist_ok=True)
+    #add file path
+    excel_output_path = os.path.join(out_dir, "video_scores_altfreeze.xlsx")
 
-    # Loop through all .mp4 files in the specified directory
     for video_file in os.listdir(video_directory):
         if video_file.endswith(".mp4"):
             torch.cuda.empty_cache()
@@ -167,7 +195,8 @@ if __name__ == "__main__":
                         frame_res[f_id] = []
                     frame_res[f_id].append(pred)
                 preds.append(pred)
-            print(np.mean(preds))
+            avg_score = np.mean(preds)
+            print(avg_score)
 
             boxes = []
             scores = []
@@ -181,4 +210,9 @@ if __name__ == "__main__":
                     rect = None
                 scores.append(pred_prob)
                 boxes.append(rect)
+            save_scores_to_excel(
+                video_name=os.path.splitext(video_file)[0],
+                avg_score=avg_score,
+                output_path=excel_output_path
+            )
             SupplyWriter(video_path, out_file, optimal_threshold).run(frames, scores, boxes)
